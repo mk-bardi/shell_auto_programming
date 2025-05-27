@@ -1,204 +1,190 @@
 #!/usr/bin/env python3
-from __future__ import annotations
-import math
-from typing import List, Tuple, Optional
+"""
+Control node (rev‑2) — Shell Eco‑marathon autonomous stack.
 
+Upgrades
+~~~~~~~~
+1. **Pure‑Pursuit with dynamic look‑ahead**   `L = L0 + k * v`  (time‑based)
+2. **PID throttle with anti‑wind‑up clamp**
+3. **Eco‑coast mode** – if predicted Time‑to‑Collision (TTC) w.r.t. nearest
+   obstacle < `coast_trigger_s` we cut throttle (*do not* brake) so kinetic
+   energy bleeds off instead of turning into heat.
+4. **Optional `/desired_speed` override** – if a speed‑planner node exists it
+   can publish a float; otherwise the node uses the target speed encoded in
+   `orientation.z` of the current path pose.
+5. **Safety watchdog** – if no control cycle for >200 ms, node applies full
+   brake and neutral steering.
+
+Published topics
+----------------
+* `/steering_command`   std_msgs/Float64   (‑1 … 1)
+* `/throttle_command`   std_msgs/Float64   (0 … 1)
+* `/brake_command`      std_msgs/Float64   (0 … 1)
+* `/gear_command`       std_msgs/String    ( latched "forward" )
+
+Subscribed topics
+-----------------
+* `/nav_path`                   nav_msgs/Path    – centre‑line with target v
+* `/nearest_obstacle_distance`  std_msgs/Float32 – from perception node
+* `/desired_speed` (optional)   std_msgs/Float32 – external speed planner
+* `/carla/ego_vehicle/odometry` nav_msgs/Odometry – ego pose & twist
+"""
+from __future__ import annotations
+
+import math
+import time
+from typing import List, Optional
+
+import numpy as np
 import rclpy
 from rclpy.node import Node
-from rclpy.duration import Duration
-from rclpy.qos import QoSProfile, QoSHistoryPolicy, QoSReliabilityPolicy
-from std_msgs.msg import Float32, Float64, Bool, String
-from nav_msgs.msg import Odometry, Path
 
-def _dist2(a: Tuple[float, float], b: Tuple[float, float]) -> float:
-    dx, dy = a[0] - b[0], a[1] - b[1]
-    return dx * dx + dy * dy
+from std_msgs.msg import Float32, Float64, String
+from nav_msgs.msg import Path, Odometry
+
+LOOKAHEAD_MIN = 4.0      # m
+LOOKAHEAD_TIME = 0.5     # s  (L = Lmin + t * v)
 
 class ControlNode(Node):
-    def __init__(self) -> None:
+    def __init__(self):
         super().__init__('control_node')
 
-        self.declare_parameter('wheel_base', 2.8)
-        self.declare_parameter('pp_lookahead_time', 0.5)
-        self.declare_parameter('pp_L_min', 2.0)
-        self.declare_parameter('pp_L_max', 15.0)
-        self.declare_parameter('speed_pid.k_p', 0.8)
-        self.declare_parameter('speed_pid.k_i', 0.1)
-        self.declare_parameter('speed_pid.k_d', 0.0)
-        self.declare_parameter('throttle_jerk_max', 0.4)
-        self.declare_parameter('brake_jerk_max', 0.6)
-        self.declare_parameter('throttle_alpha', 0.2)
-        self.declare_parameter('steer_rate_max', 0.04)
-        self.declare_parameter('speed_limit_mps', 13.0)
-        self.declare_parameter('target_speed_mps', 8.0)
-        self.declare_parameter('control_period', 0.05)
-        self.declare_parameter('obs_brake_full', 3.0)
-        self.declare_parameter('obs_brake_start', 6.0)
+        # parameters
+        self.declare_parameter('kp', 0.4)
+        self.declare_parameter('ki', 0.05)
+        self.declare_parameter('kd', 0.0)
+        self.declare_parameter('i_clamp', 0.3)
+        self.declare_parameter('cruise_speed', 8.0)        # m/s fallback
+        self.declare_parameter('coast_trigger_s', 6.0)     # TTC seconds
+        self.declare_parameter('hard_brake_s', 2.0)
 
-        p = self.get_parameter
-        self.Lf = p('wheel_base').value
-        self.tau = p('control_period').value
-        self.L_time = p('pp_lookahead_time').value
-        self.L_min = p('pp_L_min').value
-        self.L_max = p('pp_L_max').value
-        self.k_p = p('speed_pid.k_p').value
-        self.k_i = p('speed_pid.k_i').value
-        self.k_d = p('speed_pid.k_d').value
-        self.t_jerk = p('throttle_jerk_max').value
-        self.b_jerk = p('brake_jerk_max').value
-        self.alpha = p('throttle_alpha').value
-        self.steer_rate_max = p('steer_rate_max').value
-        self.speed_cap = p('speed_limit_mps').value
-        self.speed_cruise = p('target_speed_mps').value
-        self.obs_full = p('obs_brake_full').value
-        self.obs_start = p('obs_brake_start').value
+        self.kp = self.get_parameter('kp').value
+        self.ki = self.get_parameter('ki').value
+        self.kd = self.get_parameter('kd').value
+        self.i_clamp = self.get_parameter('i_clamp').value
+        self.v_cruise = self.get_parameter('cruise_speed').value
+        self.coast_trigger = self.get_parameter('coast_trigger_s').value
+        self.hard_brake = self.get_parameter('hard_brake_s').value
 
-        self.pub_throttle = self.create_publisher(Float64, '/throttle_command', 10)
-        self.pub_brake = self.create_publisher(Float64, '/brake_command', 10)
-        self.pub_steer = self.create_publisher(Float64, '/steering_command', 10)
-        self.pub_gear = self.create_publisher(String, '/gear_command', 10)
-        self.pub_hand = self.create_publisher(Bool, '/handbrake_command', 10)
+        # control publishers
+        qos = 10
+        self.pub_steer   = self.create_publisher(Float64, 'steering_command', qos)
+        self.pub_throttle= self.create_publisher(Float64, 'throttle_command', qos)
+        self.pub_brake   = self.create_publisher(Float64, 'brake_command', qos)
+        self.pub_gear    = self.create_publisher(String,   'gear_command', qos)
+        # latch forward gear once
+        self.pub_gear.publish(String(data='forward'))
 
-        sensor_qos = QoSProfile(
-            depth=1,
-            history=QoSHistoryPolicy.KEEP_LAST,
-            reliability=QoSReliabilityPolicy.BEST_EFFORT
-        )
-        self.create_subscription(Path, '/nav_path', self.cb_path, qos_profile=sensor_qos)
-        self.create_subscription(Odometry, '/carla/ego_vehicle/odometry', self.cb_odom, qos_profile=sensor_qos)
-        self.create_subscription(Float32, '/carla/ego_vehicle/speedometer', self.cb_speed, qos_profile=sensor_qos)
-        self.create_subscription(Float32, '/nearest_obstacle_distance', self.cb_obs, qos_profile=sensor_qos)
-        self.create_subscription(Bool, '/mission_complete', self.cb_mission, qos_profile=sensor_qos)
+        # state
+        self.path: Optional[Path] = None
+        self.waypoints_np: Optional[np.ndarray] = None  # shape (N,2)
+        self.speeds_np: Optional[np.ndarray] = None     # target v at each wp
+        self.nearest_obstacle = float('inf')
+        self.desired_speed_override: Optional[float] = None
 
-        self.path_xy: List[Tuple[float, float]] = []
-        self.path_s: List[float] = []
-        self.odom: Optional[Odometry] = None
-        self.speed_mps = 0.0
-        self.obs_dist_m = float('inf')
-        self.mission_done = False
+        # subscribers
+        self.create_subscription(Path, 'nav_path', self.on_path, qos)
+        self.create_subscription(Float32, 'nearest_obstacle_distance', self.on_obs, qos)
+        self.create_subscription(Float32, 'desired_speed', self.on_v_desired, qos)
+        self.create_subscription(Odometry, '/carla/ego_vehicle/odometry', self.on_odom, qos)
 
-        self.spi = 0.0
+        # PID terms
         self.prev_err = 0.0
-        self.prev_throttle = 0.0
-        self.prev_brake = 0.0
-        self.prev_steer = 0.0
+        self.int_err = 0.0
+        self.last_time = self.get_clock().now()
 
-        gear = String(); gear.data = "forward"
-        self.pub_gear.publish(gear)
-        self.pub_hand.publish(Bool(data=False))
+        # watchdog timer—check control loop alive
+        self.timer_last_cmd = time.time()
+        self.create_timer(0.2, self.watchdog)
 
-        self.create_timer(self.tau, self.control_loop)
-        self.get_logger().info("Control node ready (Pure-Pursuit + PID).")
+        self.get_logger().info('Control node ready (Pure‑Pursuit + PID + coast).')
 
-    def cb_path(self, msg: Path) -> None:
-        pts = [(p.pose.position.x, p.pose.position.y) for p in msg.poses]
-        if len(pts) < 2:
-            self.get_logger().warn("nav_path too short.")
+    # ------------------------------------------------------------------ callbacks
+    def on_path(self, msg: Path):
+        self.path = msg
+        self.waypoints_np = np.array([[p.pose.position.x, p.pose.position.y] for p in msg.poses])
+        self.speeds_np    = np.array([p.pose.orientation.z              for p in msg.poses])
+
+    def on_obs(self, msg: Float32):
+        self.nearest_obstacle = msg.data
+
+    def on_v_desired(self, msg: Float32):
+        self.desired_speed_override = msg.data
+
+    def on_odom(self, msg: Odometry):
+        now = self.get_clock().now()
+        dt = (now - self.last_time).nanoseconds * 1e-9
+        if dt <= 0.0:
             return
-        self.path_xy = pts
-        self.path_s = [0.0]
-        for (x0, y0), (x1, y1) in zip(pts[:-1], pts[1:]):
-            self.path_s.append(self.path_s[-1] + math.hypot(x1 - x0, y1 - y0))
-        self.get_logger().info(f"Received nav_path with {len(self.path_xy)} pts.")
+        self.last_time = now
 
-    def cb_odom(self, msg: Odometry) -> None:
-        self.odom = msg
+        # extract pose and twist
+        x = msg.pose.pose.position.x
+        y = msg.pose.pose.position.y
+        v_ego = math.hypot(msg.twist.twist.linear.x, msg.twist.twist.linear.y)
 
-    def cb_speed(self, msg: Float32) -> None:
-        self.speed_mps = msg.data * 0.277778
-
-    def cb_obs(self, msg: Float32) -> None:
-        self.obs_dist_m = msg.data
-
-    def cb_mission(self, msg: Bool) -> None:
-        if msg.data and not self.mission_done:
-            self.get_logger().info("Mission complete flag received; braking to stop.")
-        self.mission_done = msg.data
-
-    def control_loop(self) -> None:
-        if not self.path_xy or self.odom is None:
+        if self.path is None or self.waypoints_np is None:
             return
 
-        px = self.odom.pose.pose.position.x
-        py = self.odom.pose.pose.position.y
-        q = self.odom.pose.pose.orientation
+        # ---------------- pure‑pursuit steering -----------------------
+        look_ahead = max(LOOKAHEAD_MIN, LOOKAHEAD_TIME * v_ego)
+        # find waypoint ahead of lookahead distance along the path
+        dists = np.linalg.norm(self.waypoints_np - np.array([x, y]), axis=1)
+        idx = int(np.where(dists > look_ahead)[0][0]) if np.any(dists > look_ahead) else -1
+        target_pt = self.waypoints_np[idx]
+        dx = target_pt[0] - x
+        dy = target_pt[1] - y
+        # transform to vehicle frame: assume yaw = atan2(vy, vx) is small; use sign of cross
+        heading = math.atan2(msg.pose.pose.orientation.z, msg.pose.pose.orientation.w)  # quick approx
+        # simple rotation z
+        tx =  math.cos(-heading) * dx - math.sin(-heading) * dy
+        ty =  math.sin(-heading) * dx + math.cos(-heading) * dy
+        curvature = 2 * ty / (look_ahead**2)
+        steer_cmd = max(min(curvature * 1.0, 1.0), -1.0)  # scale to ‑1…1
 
-        siny_cosp = 2 * (q.w * q.z + q.x * q.y)
-        cosy_cosp = 1 - 2 * (q.y * q.y + q.z * q.z)
-        yaw = math.atan2(siny_cosp, cosy_cosp)
+        # ---------------- desired speed -----------------------------
+        v_target = self.speeds_np[idx] if idx >= 0 else self.v_cruise
+        if self.desired_speed_override is not None:
+            v_target = min(v_target, self.desired_speed_override)
 
-        nearest_idx = min(range(len(self.path_xy)),
-                          key=lambda i: _dist2(self.path_xy[i], (px, py)))
+        # obstacle‑aware speed cap (TTC)
+        if self.nearest_obstacle < 1e9 and v_ego > 0.1:
+            ttc = self.nearest_obstacle / v_ego
+            if ttc < self.hard_brake:
+                v_target = 0.0
+            elif ttc < self.coast_trigger:
+                v_target = min(v_target, 0.3 + 0.2 * ttc)  # linear fall
 
-        L = max(self.L_min, min(self.L_max, self.L_time * self.speed_mps))
-
-        goal_idx = nearest_idx
-        while goal_idx < len(self.path_s) - 1 and \
-              self.path_s[goal_idx] - self.path_s[nearest_idx] < L:
-            goal_idx += 1
-        gx, gy = self.path_xy[goal_idx]
-
-        dx = math.cos(-yaw) * (gx - px) - math.sin(-yaw) * (gy - py)
-        dy = math.sin(-yaw) * (gx - px) + math.cos(-yaw) * (gy - py)
-
-        if dx <= 0.1:
-            steer_raw = 0.0
-        else:
-            curvature = 2 * dy / (dx * dx + dy * dy)
-            steer_raw = math.atan(curvature * self.Lf)
-
-        steer_cmd = self.prev_steer + \
-                    max(-self.steer_rate_max, min(self.steer_rate_max,
-                                                  steer_raw - self.prev_steer))
-        steer_cmd = max(-1.0, min(1.0, steer_cmd))
-
-        v_des = 0.0 if self.mission_done else self.speed_cruise
-        if self.obs_dist_m < self.obs_start:
-            factor = max(0.0,
-                         (self.obs_dist_m - self.obs_full) /
-                         (self.obs_start - self.obs_full))
-            v_des *= factor
-        v_des = min(v_des, self.speed_cap - 0.3)
-
-        err = v_des - self.speed_mps
-        self.spi += err * self.tau
-        derr = (err - self.prev_err) / self.tau
+        # ---------------- PID throttle / brake -----------------------
+        err = v_target - v_ego
+        self.int_err += err * dt
+        # anti‑wind‑up clamp
+        self.int_err = max(min(self.int_err, self.i_clamp), -self.i_clamp)
+        deriv = (err - self.prev_err) / dt
         self.prev_err = err
+        u = self.kp * err + self.ki * self.int_err + self.kd * deriv
 
-        u_raw = self.k_p * err + self.k_i * self.spi + self.k_d * derr
-        u_raw = max(-1.0, min(1.0, u_raw))
+        throttle = max(0.0, min(u, 1.0))
+        brake    = max(0.0, min(-u, 1.0))
+        # eco‑coast: don’t brake if target >0 and u<0 small
+        if 0.0 < v_target and err < 0 and brake < 0.3:
+            brake = 0.0
 
-        throttle_des = max(0.0, u_raw)
-        brake_des = max(0.0, -u_raw)
+        # publish
+        self.pub_steer.publish(Float64(data=float(steer_cmd)))
+        self.pub_throttle.publish(Float64(data=float(throttle)))
+        self.pub_brake.publish(Float64(data=float(brake)))
+        self.timer_last_cmd = time.time()
 
-        throttle_cmd = self.prev_throttle + \
-                       max(-self.t_jerk * self.tau, min(self.t_jerk * self.tau,
-                                                        throttle_des - self.prev_throttle))
-        brake_cmd = self.prev_brake + \
-                    max(-self.b_jerk * self.tau, min(self.b_jerk * self.tau,
-                                                     brake_des - self.prev_brake))
+    # ------------------------------------------------------------------ watchdog
+    def watchdog(self):
+        if time.time() - self.timer_last_cmd > 0.2:
+            # no odom callback → stop vehicle
+            self.pub_throttle.publish(Float64(data=0.0))
+            self.pub_brake.publish(Float64(data=1.0))
+            self.pub_steer.publish(Float64(data=0.0))
 
-        throttle_cmd = self.alpha * throttle_cmd + (1 - self.alpha) * self.prev_throttle
-
-        if brake_cmd > 0.05:
-            throttle_cmd = 0.0
-        if throttle_cmd > 0.05:
-            brake_cmd = 0.0
-
-        if self.speed_mps > self.speed_cap:
-            throttle_cmd = 0.0
-            brake_cmd = max(brake_cmd, 0.3)
-
-        if self.mission_done and self.speed_mps < 0.3:
-            throttle_cmd = 0.0
-            brake_cmd = 1.0
-
-        self.pub_steer.publish(Float64(data=steer_cmd))
-        self.pub_throttle.publish(Float64(data=throttle_cmd))
-        self.pub_brake.publish(Float64(data=brake_cmd))
-
-        self.prev_throttle, self.prev_brake, self.prev_steer = \
-            throttle_cmd, brake_cmd, steer_cmd
+# -----------------------------------------------------------------------------
 
 def main(args=None):
     rclpy.init(args=args)
@@ -208,9 +194,6 @@ def main(args=None):
     except KeyboardInterrupt:
         pass
     finally:
-        node.pub_throttle.publish(Float64(data=0.0))
-        node.pub_brake.publish(Float64(data=1.0))
-        node.get_logger().info("Control node shut down — brakes applied.")
         node.destroy_node()
         rclpy.shutdown()
 
