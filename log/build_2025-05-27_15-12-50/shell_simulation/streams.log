@@ -1,0 +1,46 @@
+[0.556s] Invoking command in '/home/mkbardi/sem_ws/build/shell_simulation': PYTHONPATH=/home/mkbardi/sem_ws/build/shell_simulation/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/mkbardi/sem_ws/install/shell_simulation/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --uninstall --editable --build-directory /home/mkbardi/sem_ws/build/shell_simulation/build
+[0.803s] running develop
+[0.956s] Removing /home/mkbardi/sem_ws/install/shell_simulation/lib/python3.10/site-packages/shell-simulation.egg-link (link to .)
+[0.978s] Invoked command in '/home/mkbardi/sem_ws/build/shell_simulation' returned '0': PYTHONPATH=/home/mkbardi/sem_ws/build/shell_simulation/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/mkbardi/sem_ws/install/shell_simulation/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --uninstall --editable --build-directory /home/mkbardi/sem_ws/build/shell_simulation/build
+[0.979s] Invoking command in '/home/mkbardi/sem_ws/src/shell_simulation': PYTHONPATH=/home/mkbardi/sem_ws/build/shell_simulation/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/mkbardi/sem_ws/install/shell_simulation/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/shell_simulation build --build-base /home/mkbardi/sem_ws/build/shell_simulation/build install --record /home/mkbardi/sem_ws/build/shell_simulation/install.log --single-version-externally-managed install_data --force
+[1.199s] running egg_info
+[1.200s] writing ../../build/shell_simulation/shell_simulation.egg-info/PKG-INFO
+[1.200s] writing dependency_links to ../../build/shell_simulation/shell_simulation.egg-info/dependency_links.txt
+[1.200s] writing entry points to ../../build/shell_simulation/shell_simulation.egg-info/entry_points.txt
+[1.200s] writing requirements to ../../build/shell_simulation/shell_simulation.egg-info/requires.txt
+[1.200s] writing top-level names to ../../build/shell_simulation/shell_simulation.egg-info/top_level.txt
+[1.202s] reading manifest file '../../build/shell_simulation/shell_simulation.egg-info/SOURCES.txt'
+[1.203s] writing manifest file '../../build/shell_simulation/shell_simulation.egg-info/SOURCES.txt'
+[1.203s] running build
+[1.203s] running build_py
+[1.204s] creating /home/mkbardi/sem_ws/build/shell_simulation/build
+[1.204s] creating /home/mkbardi/sem_ws/build/shell_simulation/build/lib
+[1.204s] creating /home/mkbardi/sem_ws/build/shell_simulation/build/lib/shell_simulation
+[1.204s] copying shell_simulation/perception_node.py -> /home/mkbardi/sem_ws/build/shell_simulation/build/lib/shell_simulation
+[1.204s] copying shell_simulation/planning_node.py -> /home/mkbardi/sem_ws/build/shell_simulation/build/lib/shell_simulation
+[1.204s] copying shell_simulation/control_node.py -> /home/mkbardi/sem_ws/build/shell_simulation/build/lib/shell_simulation
+[1.204s] copying shell_simulation/__init__.py -> /home/mkbardi/sem_ws/build/shell_simulation/build/lib/shell_simulation
+[1.204s] running install
+[1.204s] running install_lib
+[1.205s] creating /home/mkbardi/sem_ws/install/shell_simulation/lib/python3.10/site-packages/shell_simulation
+[1.205s] copying /home/mkbardi/sem_ws/build/shell_simulation/build/lib/shell_simulation/perception_node.py -> /home/mkbardi/sem_ws/install/shell_simulation/lib/python3.10/site-packages/shell_simulation
+[1.205s] copying /home/mkbardi/sem_ws/build/shell_simulation/build/lib/shell_simulation/planning_node.py -> /home/mkbardi/sem_ws/install/shell_simulation/lib/python3.10/site-packages/shell_simulation
+[1.205s] copying /home/mkbardi/sem_ws/build/shell_simulation/build/lib/shell_simulation/control_node.py -> /home/mkbardi/sem_ws/install/shell_simulation/lib/python3.10/site-packages/shell_simulation
+[1.205s] copying /home/mkbardi/sem_ws/build/shell_simulation/build/lib/shell_simulation/__init__.py -> /home/mkbardi/sem_ws/install/shell_simulation/lib/python3.10/site-packages/shell_simulation
+[1.206s] byte-compiling /home/mkbardi/sem_ws/install/shell_simulation/lib/python3.10/site-packages/shell_simulation/perception_node.py to perception_node.cpython-310.pyc
+[1.207s] byte-compiling /home/mkbardi/sem_ws/install/shell_simulation/lib/python3.10/site-packages/shell_simulation/planning_node.py to planning_node.cpython-310.pyc
+[1.208s] byte-compiling /home/mkbardi/sem_ws/install/shell_simulation/lib/python3.10/site-packages/shell_simulation/control_node.py to control_node.cpython-310.pyc
+[1.209s] byte-compiling /home/mkbardi/sem_ws/install/shell_simulation/lib/python3.10/site-packages/shell_simulation/__init__.py to __init__.cpython-310.pyc
+[1.209s] running install_data
+[1.210s] copying resource/shell_simulation -> /home/mkbardi/sem_ws/install/shell_simulation/share/ament_index/resource_index/packages
+[1.210s] copying package.xml -> /home/mkbardi/sem_ws/install/shell_simulation/share/shell_simulation
+[1.210s] copying launch/shell_simulation.launch.py -> /home/mkbardi/sem_ws/install/shell_simulation/share/shell_simulation/launch
+[1.210s] copying config/waypoints.yaml -> /home/mkbardi/sem_ws/install/shell_simulation/share/shell_simulation/config
+[1.210s] running install_egg_info
+[1.212s] Copying ../../build/shell_simulation/shell_simulation.egg-info to /home/mkbardi/sem_ws/install/shell_simulation/lib/python3.10/site-packages/shell_simulation-0.0.0-py3.10.egg-info
+[1.213s] running install_scripts
+[1.233s] Installing control_node script to /home/mkbardi/sem_ws/install/shell_simulation/lib/shell_simulation
+[1.233s] Installing perception_node script to /home/mkbardi/sem_ws/install/shell_simulation/lib/shell_simulation
+[1.233s] Installing planning_node script to /home/mkbardi/sem_ws/install/shell_simulation/lib/shell_simulation
+[1.234s] writing list of installed files to '/home/mkbardi/sem_ws/build/shell_simulation/install.log'
+[1.253s] Invoked command in '/home/mkbardi/sem_ws/src/shell_simulation' returned '0': PYTHONPATH=/home/mkbardi/sem_ws/build/shell_simulation/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/mkbardi/sem_ws/install/shell_simulation/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/shell_simulation build --build-base /home/mkbardi/sem_ws/build/shell_simulation/build install --record /home/mkbardi/sem_ws/build/shell_simulation/install.log --single-version-externally-managed install_data --force

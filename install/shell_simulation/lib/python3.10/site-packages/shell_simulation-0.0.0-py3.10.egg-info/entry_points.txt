@@ -1,0 +1,5 @@
+[console_scripts]
+control_node = shell_simulation.control_node:main
+perception_node = shell_simulation.perception_node:main
+planning_node = shell_simulation.planning_node:main
+

@@ -1,0 +1,28 @@
+running develop
+running egg_info
+creating shell_simulation.egg-info
+writing shell_simulation.egg-info/PKG-INFO
+writing dependency_links to shell_simulation.egg-info/dependency_links.txt
+writing entry points to shell_simulation.egg-info/entry_points.txt
+writing requirements to shell_simulation.egg-info/requires.txt
+writing top-level names to shell_simulation.egg-info/top_level.txt
+writing manifest file 'shell_simulation.egg-info/SOURCES.txt'
+reading manifest file 'shell_simulation.egg-info/SOURCES.txt'
+writing manifest file 'shell_simulation.egg-info/SOURCES.txt'
+running build_ext
+Creating /home/mkbardi/sem_ws/install/shell_simulation/lib/python3.10/site-packages/shell-simulation.egg-link (link to .)
+Installing control_node script to /home/mkbardi/sem_ws/install/shell_simulation/lib/shell_simulation
+Installing perception_node script to /home/mkbardi/sem_ws/install/shell_simulation/lib/shell_simulation
+Installing planning_node script to /home/mkbardi/sem_ws/install/shell_simulation/lib/shell_simulation
+
+Installed /home/mkbardi/sem_ws/build/shell_simulation
+running symlink_data
+creating /home/mkbardi/sem_ws/install/shell_simulation/share/ament_index
+creating /home/mkbardi/sem_ws/install/shell_simulation/share/ament_index/resource_index
+creating /home/mkbardi/sem_ws/install/shell_simulation/share/ament_index/resource_index/packages
+symbolically linking /home/mkbardi/sem_ws/build/shell_simulation/resource/shell_simulation -> /home/mkbardi/sem_ws/install/shell_simulation/share/ament_index/resource_index/packages
+symbolically linking /home/mkbardi/sem_ws/build/shell_simulation/package.xml -> /home/mkbardi/sem_ws/install/shell_simulation/share/shell_simulation
+creating /home/mkbardi/sem_ws/install/shell_simulation/share/shell_simulation/launch
+symbolically linking /home/mkbardi/sem_ws/build/shell_simulation/launch/shell_simulation.launch.py -> /home/mkbardi/sem_ws/install/shell_simulation/share/shell_simulation/launch
+creating /home/mkbardi/sem_ws/install/shell_simulation/share/shell_simulation/config
+symbolically linking /home/mkbardi/sem_ws/build/shell_simulation/config/waypoints.yaml -> /home/mkbardi/sem_ws/install/shell_simulation/share/shell_simulation/config
