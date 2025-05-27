@@ -1,0 +1,28 @@
+mkbardi@pop-os:~/ABU_shell_auto_programming$ ros2 launch shell_simulation shell_simulation.launch.py
+[INFO] [launch]: All log files can be found below /home/mkbardi/.ros/log/2025-05-27-16-21-00-201077-pop-os-7294
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [planning_node-1]: process started with pid [7299]
+[INFO] [perception_node-2]: process started with pid [7301]
+[INFO] [control_node-3]: process started with pid [7303]
+[planning_node-1] Traceback (most recent call last):
+[planning_node-1]   File "/home/mkbardi/sem_ws/install/shell_simulation/lib/shell_simulation/planning_node", line 33, in <module>
+[planning_node-1]     sys.exit(load_entry_point('shell-simulation==0.0.0', 'console_scripts', 'planning_node')())
+[planning_node-1]   File "/home/mkbardi/sem_ws/install/shell_simulation/lib/shell_simulation/planning_node", line 25, in importlib_load_entry_point
+[planning_node-1]     return next(matches).load()
+[planning_node-1]   File "/usr/lib/python3.10/importlib/metadata/__init__.py", line 171, in load
+[planning_node-1]     module = import_module(match.group('module'))
+[planning_node-1]   File "/usr/lib/python3.10/importlib/__init__.py", line 126, in import_module
+[planning_node-1]     return _bootstrap._gcd_import(name[level:], package, level)
+[planning_node-1]   File "<frozen importlib._bootstrap>", line 1050, in _gcd_import
+[planning_node-1]   File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+[planning_node-1]   File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
+[planning_node-1]   File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+[planning_node-1]   File "<frozen importlib._bootstrap_external>", line 883, in exec_module
+[planning_node-1]   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+[planning_node-1]   File "/home/mkbardi/sem_ws/install/shell_simulation/lib/python3.10/site-packages/shell_simulation/planning_node.py", line 30, in <module>
+[planning_node-1]     from agents.navigation.global_route_planner import GlobalRoutePlanner
+[planning_node-1] ModuleNotFoundError: No module named 'agents'
+[control_node-3] [INFO] [1748359260.553838412] [control_node]: Control node ready (Pure-Pursuit + PID).
+[ERROR] [planning_node-1]: process has died [pid 7299, exit code 1, cmd '/home/mkbardi/sem_ws/install/shell_simulation/lib/shell_simulation/planning_node --ros-args -r __node:=planning_node --params-file /tmp/launch_params_ye4ykcj5'].
+[perception_node-2] [INFO] [1748359260.734465489] [perception_node]: LiDAR mode enabled. Depth camera subscription active but processing will be skipped.
+[perception_node-2] [INFO] [1748359260.734847363] [perception_node]: Perception node ready (threshold = 3.0 m, LiDAR mode)
