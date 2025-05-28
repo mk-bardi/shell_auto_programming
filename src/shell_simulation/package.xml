@@ -2,18 +2,33 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>shell_simulation</name>
-  <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <version>0.0.1</version> <!-- Consider incrementing if you make significant changes -->
+  <description>Shell Eco-marathon autonomous driving stack (planning, perception, control).</description>
   <maintainer email="muktarbardi@gmail.com">mkbardi</maintainer>
-  <license>TODO: License declaration</license>
+  <license>Apache-2.0</license> <!-- Or your chosen license, e.g., MIT, BSD -->
 
+  <!-- ROS 2 Client Libraries and Core Messages -->
   <depend>rclpy</depend>
   <depend>std_msgs</depend>
   <depend>nav_msgs</depend>
   <depend>geometry_msgs</depend>
-  <depend>cv_bridge</depend>
-  <depend>python3-yaml</depend>
+  <depend>sensor_msgs</depend>
+  <depend>sensor_msgs_py</depend> <!-- For point_cloud2 utilities -->
 
+  <!-- Python Libraries needed by the nodes (rosdep keys) -->
+  <!-- For PyYAML, numpy, scipy, filterpy, opencv, rosdep typically installs system versions -->
+  <depend>python3-numpy</depend>
+  <depend>python3-scipy</depend>
+  <depend>python3-yaml</depend>
+  <!-- filterpy might not have a direct rosdep key; often installed via pip -->
+  <!-- python3-opencv is the rosdep key for OpenCV -->
+  <depend>python3-opencv</depend>
+
+
+  <!-- Build Tool Dependency for Python Packages -->
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <!-- Test Dependencies -->
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
   <test_depend>ament_pep257</test_depend>

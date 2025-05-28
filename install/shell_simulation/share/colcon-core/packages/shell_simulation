@@ -1,1 +1,1 @@
-cv_bridge:geometry_msgs:nav_msgs:python3-yaml:rclpy:std_msgs
+geometry_msgs:nav_msgs:python3-numpy:python3-opencv:python3-scipy:python3-yaml:rclpy:sensor_msgs:sensor_msgs_py:std_msgs
